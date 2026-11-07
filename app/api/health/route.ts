@@ -49,7 +49,15 @@ export async function GET() {
       note: "NJDG returns HTML dashboards, not JSON. This app links to https://njdg.ecourts.gov.in and does not fabricate medians.",
     },
     dataGovIn: {
-      note: "data.gov.in Civil Pendency datasets require a user API key (api.data.gov.in). Without a key the API returns an authorization error — surfaced honestly; use the dataset link on /sources.",
+      configured: Boolean(process.env.DATA_GOV_IN_API_KEY),
+      resourceId: "e3097e03-680a-4198-a9ca-016de994f5b3",
+      note: "State/UT undertrial rows are fetched from data.gov.in on /api/state-context and cached for 6 hours. If the API rate-limits or a row is missing, the UI says so; no number is estimated.",
+    },
+    dlsaDirectory: {
+      rows: 157,
+      states: 10,
+      accessedOn: "2026-11-06",
+      note: "Vendored from NALSA State Legal Services Authority pages. Uncovered districts are labelled not yet sourced; no phone number or address is invented.",
     },
   });
 }

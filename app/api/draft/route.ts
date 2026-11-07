@@ -13,6 +13,7 @@ export async function POST(req: Request) {
     prisonerName?: string;
     caseNo?: string;
     court?: string;
+    jail?: string;
     district?: string;
     state?: string;
     sectionIds?: string[];
@@ -84,6 +85,30 @@ export async function POST(req: Request) {
   };
   const template = `${renderEnglishApplication(facts)}\n\n---\n\n${renderHindiApplication(facts)}`;
 
+  const { buildApplication } = await import("@/lib/application");
+  const { lookupDlsa } = await import("@/lib/dlsa");
+  const dlsa = body.district ? lookupDlsa(body.state ?? "", body.district) : null;
+  const application = buildApplication({
+    prisonerName: body.prisonerName,
+    caseNo: body.caseNo,
+    court: body.court ?? "____________",
+    jail: body.jail ?? "District Jail",
+    district: body.district ?? "____________",
+    state: body.state ?? "____________",
+    charges: labels,
+    detentionStart: body.detentionStart,
+    eligibilityDate: comp.eligibilityDate,
+    firstTimeOffender: !!body.firstTimeOffender,
+    fractionLabel: comp.fraction === 1 / 3 ? "one-third" : "one-half",
+    releaseMode: comp.releaseMode,
+    daysDetainedEffective: comp.daysDetainedEffective,
+    daysOverLimit: comp.daysOverLimit,
+    governingMaxYears: comp.governingMaxYears,
+    status: comp.status,
+    today: comp.today,
+    dlsaOffice: dlsa?.matches[0]?.officeName,
+  });
+
   const draft =
     llm.source === "bharatcode" && llm.text
       ? llm.text.includes("Legal information")
@@ -94,6 +119,7 @@ export async function POST(req: Request) {
   return NextResponse.json({
     eligibility: comp,
     draft,
+    application,
     draftSource: llm.source,
     model: llm.model,
     modelStatusNote: llm.modelStatusNote,

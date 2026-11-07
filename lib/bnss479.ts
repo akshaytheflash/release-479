@@ -25,6 +25,13 @@ Explanation.—In computing the period of detention under this section for grant
 export const BNSS479_SOURCE_URL =
   "https://www.indiacode.nic.in/handle/123456789/20099";
 
+/** Exact excerpts used in the generated application. Do not paraphrase. */
+export const BNSS479_QUOTE = {
+  sub1: BNSS479_VERBATIM.split("\n")[1],
+  firstProviso: BNSS479_VERBATIM.split("\n")[2],
+  sub3: BNSS479_VERBATIM.split("\n")[7],
+};
+
 /** NCRB Prison Statistics India 2024 — verified figures (see Sources page). */
 export const NCRB_2024 = {
   totalPrisonersEnd2024: 511542,

@@ -58,10 +58,15 @@ export interface EligibilityResult {
   releaseMode: "bond" | "bail";
   perSection: PerSectionResult[];
   governingMaxYears: number;
+  governingSectionId: string | null;
+  governingThresholdDays: number;
   eligibilityDate: string | null;
   daysDetainedEffective: number;
   daysOverLimit: number;
+  daysUntilEligible: number;
+  ceilingDays: number;
   accusedDelayDays: number;
+  today: string;
   notes: string[];
 }
 
@@ -77,14 +82,20 @@ export function parseDate(iso: string): Date {
   return d;
 }
 
-function addDays(iso: string, days: number): string {
+export function addDays(iso: string, days: number): string {
   return toISODate(new Date(parseDate(iso).getTime() + days * DAY_MS));
+}
+
+export function daysBetween(fromIso: string, toIso: string): number {
+  return Math.floor(
+    (parseDate(toIso).getTime() - parseDate(fromIso).getTime()) / DAY_MS
+  );
 }
 
 export function computeEligibility(input: EligibilityInput): EligibilityResult {
   const today = input.today ?? toISODate(new Date());
   const fraction: number = input.firstTimeOffender ? 1 / 3 : 1 / 2;
-  const releaseMode = input.firstTimeOffender ? "bond" : "bail";
+  const releaseMode: "bond" | "bail" = input.firstTimeOffender ? "bond" : "bail";
   const accusedDelayDays = Math.max(0, Math.floor(input.accusedDelayDays ?? 0));
 
   const notes: string[] = [
@@ -93,17 +104,26 @@ export function computeEligibility(input: EligibilityInput): EligibilityResult {
     "3rd proviso: the Court may, after hearing the Public Prosecutor and for recorded reasons, order continued detention beyond one-half or convert bond/bail. Eligibility ≠ guaranteed release.",
   ];
 
+  const base = {
+    fraction,
+    releaseMode,
+    perSection: [] as PerSectionResult[],
+    governingMaxYears: 0,
+    governingSectionId: null as string | null,
+    governingThresholdDays: 0,
+    eligibilityDate: null as string | null,
+    daysDetainedEffective: 0,
+    daysOverLimit: 0,
+    daysUntilEligible: 0,
+    ceilingDays: 0,
+    accusedDelayDays,
+    today,
+  };
+
   if (!input.sectionIds.length) {
     return {
+      ...base,
       status: "UNKNOWN_SECTION",
-      fraction,
-      releaseMode,
-      perSection: [],
-      governingMaxYears: 0,
-      eligibilityDate: null,
-      daysDetainedEffective: 0,
-      daysOverLimit: 0,
-      accusedDelayDays,
       notes: ["Select at least one charged section.", ...notes],
     };
   }
@@ -111,15 +131,8 @@ export function computeEligibility(input: EligibilityInput): EligibilityResult {
   const unknown = input.sectionIds.filter((id) => !BNS_BY_ID[id]);
   if (unknown.length) {
     return {
+      ...base,
       status: "UNKNOWN_SECTION",
-      fraction,
-      releaseMode,
-      perSection: [],
-      governingMaxYears: 0,
-      eligibilityDate: null,
-      daysDetainedEffective: 0,
-      daysOverLimit: 0,
-      accusedDelayDays,
       notes: [
         `Unknown / unsupported section id(s): ${unknown.join(", ")}. This MVP supports ${BNS_SECTIONS.length} verified BNS entries only. Verify the chargesheet section with DLSA/advocate.`,
         ...notes,
@@ -148,26 +161,32 @@ export function computeEligibility(input: EligibilityInput): EligibilityResult {
   );
   const eligibilityDate = governing.eligibilityDate;
   const governingMaxYears = governing.maxSentenceYears;
-
-  const rawDays = Math.floor(
-    (parseDate(today).getTime() - parseDate(input.detentionStart).getTime()) / DAY_MS
-  );
-  const daysDetainedEffective = Math.max(0, rawDays - accusedDelayDays);
-  const daysOverLimit = Math.max(0, daysDetainedEffective - governing.thresholdDays);
+  const governingThresholdDays = governing.thresholdDays;
   const ceilingDays = Math.round(365 * governingMaxYears);
+
+  const rawDays = daysBetween(input.detentionStart, today);
+  const daysDetainedEffective = Math.max(0, rawDays - accusedDelayDays);
+  const daysOverLimit = Math.max(0, daysDetainedEffective - governingThresholdDays);
+  const daysUntilEligible = Math.max(0, governingThresholdDays - daysDetainedEffective);
   const ceilingBreached = daysDetainedEffective > ceilingDays;
+
+  const computed = {
+    ...base,
+    perSection,
+    governingMaxYears,
+    governingSectionId: governing.sectionId,
+    governingThresholdDays,
+    eligibilityDate,
+    daysDetainedEffective,
+    daysOverLimit,
+    daysUntilEligible,
+    ceilingDays,
+  };
 
   if (anyExcluded) {
     return {
+      ...computed,
       status: "EXCLUDED_DEATH_LIFE",
-      fraction,
-      releaseMode,
-      perSection,
-      governingMaxYears,
-      eligibilityDate,
-      daysDetainedEffective,
-      daysOverLimit,
-      accusedDelayDays,
       notes: [
         "BNSS 479(1) applies only where the offence does NOT specify death or life imprisonment as one of the punishments. At least one selected charge falls outside Section 479 — seek DLSA/advocate advice; do not rely on this tool for release.",
         ...notes,
@@ -177,15 +196,8 @@ export function computeEligibility(input: EligibilityInput): EligibilityResult {
 
   if (input.pendingOtherCases) {
     return {
+      ...computed,
       status: "BLOCKED_PENDING_OTHER_CASES",
-      fraction,
-      releaseMode,
-      perSection,
-      governingMaxYears,
-      eligibilityDate,
-      daysDetainedEffective,
-      daysOverLimit,
-      accusedDelayDays,
       notes: [
         "BNSS 479(2): where investigation/inquiry/trial in more than one offence or multiple cases are pending, the person shall not be released on bail. This input blocks Section 479 release. DLSA may still review each case separately.",
         ...notes,
@@ -195,15 +207,8 @@ export function computeEligibility(input: EligibilityInput): EligibilityResult {
 
   if (ceilingBreached) {
     return {
+      ...computed,
       status: "CEILING_BREACHED",
-      fraction,
-      releaseMode,
-      perSection,
-      governingMaxYears,
-      eligibilityDate,
-      daysDetainedEffective,
-      daysOverLimit,
-      accusedDelayDays,
       notes: [
         `4th proviso breached: detention already exceeds the maximum period (${governingMaxYears} years) for the governing offence. Escalate immediately to the Court / DLSA / jail Superintendent.`,
         ...notes,
@@ -211,17 +216,10 @@ export function computeEligibility(input: EligibilityInput): EligibilityResult {
     };
   }
 
-  if (daysDetainedEffective >= governing.thresholdDays) {
+  if (daysDetainedEffective >= governingThresholdDays) {
     return {
+      ...computed,
       status: "ELIGIBLE_NOW",
-      fraction,
-      releaseMode,
-      perSection,
-      governingMaxYears,
-      eligibilityDate,
-      daysDetainedEffective,
-      daysOverLimit,
-      accusedDelayDays,
       notes: [
         `Detention has reached ${fraction === 1 / 3 ? "one-third" : "one-half"} of the maximum period. First-time offenders are released on bond at 1/3; others on bail at 1/2 (verify bond vs bail with the Court).`,
         ...notes,
@@ -230,15 +228,8 @@ export function computeEligibility(input: EligibilityInput): EligibilityResult {
   }
 
   return {
+    ...computed,
     status: "NOT_YET",
-    fraction,
-    releaseMode,
-    perSection,
-    governingMaxYears,
-    eligibilityDate,
-    daysDetainedEffective,
-    daysOverLimit: 0,
-    accusedDelayDays,
     notes,
   };
 }

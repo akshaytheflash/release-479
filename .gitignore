@@ -6,3 +6,10 @@ data.db
 
 .vercel
 .env*
+
+.test-build/
+
+*.db
+*.db-shm
+*.db-wal
+*.tsbuildinfo
