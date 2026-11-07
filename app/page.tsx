@@ -6,6 +6,7 @@ import { STATE_CONTEXT_STATES } from "@/lib/stateContext";
 import { buildApplication, formatDateEn, type ApplicationBundle } from "@/lib/application";
 import ApplicationSheet from "@/components/ApplicationSheet";
 import DetentionTimeline from "@/components/DetentionTimeline";
+import FloatingClock from "@/components/FloatingClock";
 
 interface Eligibility {
   status: string;
@@ -602,6 +603,13 @@ export default function Home() {
                     thresholdDays={result.governingThresholdDays}
                     maxDays={result.ceilingDays}
                     status={result.status}
+                  />
+
+                  <FloatingClock
+                    daysServed={result.daysDetainedEffective}
+                    thresholdDays={result.governingThresholdDays}
+                    status={result.status}
+                    eligibilityDate={result.eligibilityDate}
                   />
 
                   <div className="btn-row">
