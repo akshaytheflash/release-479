@@ -1,20 +1,23 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useI18n } from "@/components/I18nProvider";
+import type { MessageKey } from "@/lib/i18n/messages/en";
 
-const LINKS = [
-  { href: "/", label: "Case file" },
-  { href: "/legal-aid", label: "Legal aid" },
-  { href: "/dlsa", label: "DLSA desk" },
-  { href: "/dashboard", label: "Register" },
-  { href: "/sources", label: "Sources" },
-  { href: "/metrics", label: "Metrics" },
+const LINKS: Array<{ href: string; label: MessageKey }> = [
+  { href: "/", label: "nav.caseFile" },
+  { href: "/legal-aid", label: "nav.legalAid" },
+  { href: "/dlsa", label: "nav.dlsa" },
+  { href: "/dashboard", label: "nav.register" },
+  { href: "/sources", label: "nav.sources" },
+  { href: "/metrics", label: "nav.metrics" },
 ];
 
 export default function SiteNav() {
   const pathname = usePathname();
+  const { t } = useI18n();
   return (
-    <nav className="nav" aria-label="Main">
+    <nav className="nav" aria-label={t("nav.main")}>
       {LINKS.map((link) => {
         const current =
           link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
@@ -24,7 +27,7 @@ export default function SiteNav() {
             href={link.href}
             aria-current={current ? "page" : undefined}
           >
-            {link.label}
+            {t(link.label)}
           </a>
         );
       })}

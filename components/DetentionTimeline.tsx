@@ -1,3 +1,6 @@
+"use client";
+
+import { useI18n } from "@/components/I18nProvider";
 import { formatDateEn } from "@/lib/application";
 
 interface TimelineProps {
@@ -19,17 +22,18 @@ export default function DetentionTimeline({
   maxDays,
   status,
 }: TimelineProps) {
+  const { t } = useI18n();
   const items = [
     {
       date: detentionStart,
-      label: "Custody begins",
-      detail: "First day counted as detention.",
+      label: t("timeline.custodyBegins"),
+      detail: t("timeline.custodyBeginsDetail"),
       cls: "start",
     },
     {
       date: today,
-      label: "Today",
-      detail: `${daysDetained} effective days in custody.`,
+      label: t("timeline.today"),
+      detail: t("timeline.todayDetail", { days: daysDetained }),
       cls: "today",
     },
     ...(eligibilityDate
@@ -38,12 +42,12 @@ export default function DetentionTimeline({
             date: eligibilityDate,
             label:
               status === "NOT_YET"
-                ? "Statutory release date"
-                : "Statutory release date reached",
+                ? t("timeline.releaseDate")
+                : t("timeline.releaseDateReached"),
             detail:
               status === "NOT_YET"
-                ? "The 1/3 or 1/2 period completes on this date."
-                : "The 1/3 or 1/2 period was completed on this date.",
+                ? t("timeline.releaseDetailNotYet")
+                : t("timeline.releaseDetailDone"),
             cls: "eligibility",
           },
         ]
@@ -61,9 +65,9 @@ export default function DetentionTimeline({
         <span className="remaining" style={{ width: `${100 - servedPct}%` }} />
       </div>
       <div className="detention-scale">
-        <span>0 days</span>
-        <span>1/3 or 1/2: {thresholdDays} days</span>
-        <span>max: {maxDays} days</span>
+        <span>{t("timeline.scaleStart")}</span>
+        <span>{t("timeline.scaleThreshold", { days: thresholdDays })}</span>
+        <span>{t("timeline.scaleMax", { days: maxDays })}</span>
       </div>
       <div
         style={{
@@ -73,8 +77,7 @@ export default function DetentionTimeline({
           marginTop: 2,
         }}
       >
-        The bar is scaled to the maximum sentence. The threshold sits at{" "}
-        {Math.round(thresholdPct)}% of that maximum.
+        {t("timeline.explain", { pct: Math.round(thresholdPct) })}
       </div>
 
       <div className="timeline">

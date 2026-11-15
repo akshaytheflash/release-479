@@ -21,6 +21,9 @@ import {
   NALSA_LEGAL_AID_URL,
   NALSA_ONLINE_APPLICATION_URL,
 } from "@/lib/incomeLimits";
+import { useI18n } from "@/components/I18nProvider";
+import RichText from "@/components/RichText";
+import { bnsMaxKey, bnsTitleKey } from "@/lib/i18n/labels";
 
 interface Summary {
   states: number;
@@ -31,6 +34,7 @@ interface Summary {
 }
 
 export default function Sources() {
+  const { t } = useI18n();
   const [health, setHealth] = useState<unknown>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
 
@@ -49,14 +53,9 @@ export default function Sources() {
     <div className="screen-only">
       <div className="shell">
         <header className="page-head">
-          <p className="page-kicker">Citations and live-data status</p>
-          <h1>Every number has a source and a date.</h1>
-          <p className="lede">
-            Statutes, sentence values, prison figures, DLSA contacts and income
-            ceilings are listed here with the authority and the date they were
-            checked. Where a source is unavailable or a district is missing, the
-            page says so. Nothing is filled in to make the file look complete.
-          </p>
+          <p className="page-kicker">{t("sources.kicker")}</p>
+          <h1>{t("sources.title")}</h1>
+          <p className="lede">{t("sources.lede")}</p>
         </header>
 
         <div className="case-layout" style={{ paddingTop: 34 }}>
@@ -64,53 +63,60 @@ export default function Sources() {
             <section className="folio" style={{ paddingTop: 0 }}>
               <div className="folio-head">
                 <span className="folio-mark">01</span>
-                <h2>BNSS Section 479, verbatim</h2>
+                <h2>{t("sources.s1.title")}</h2>
               </div>
               <p>
-                Authority:{" "}
-                <a href={BNSS479_SOURCE_URL} target="_blank" rel="noreferrer">
-                  Bharatiya Nagarik Suraksha Sanhita, 2023, India Code
-                </a>
-                . The text below was verified against the Indian Kanoon mirror
-                (indiankanoon.org/doc/87702491) on 6 November 2026. India Code
-                blocks automated fetch; reconcile with the Gazette or the India
-                Code PDF before filing.
+                <RichText
+                  template={t("sources.authority")}
+                  values={{
+                    authority: (
+                      <a href={BNSS479_SOURCE_URL} target="_blank" rel="noreferrer">
+                        {t("sources.authorityBnss")}
+                      </a>
+                    ),
+                  }}
+                />{" "}
+                {t("sources.authorityNote")}
               </p>
-              <div className="verbatim">{BNSS479_VERBATIM}</div>
+              <div className="verbatim" lang="en" dir="ltr">
+                {BNSS479_VERBATIM}
+              </div>
               <p className="small" style={{ marginTop: 12 }}>
-                The printable application quotes s.479(1), the first proviso and
-                s.479(3) exactly. The quote block used in the document begins:{" "}
-                <span className="mono">{BNSS479_QUOTE.sub1.slice(0, 96)}…</span>
+                <RichText
+                  template={t("sources.quoteNote")}
+                  values={{
+                    quote: (
+                      <span className="mono" lang="en">
+                        {BNSS479_QUOTE.sub1.slice(0, 96)}…
+                      </span>
+                    ),
+                  }}
+                />
               </p>
               <ul className="small" style={{ paddingLeft: 18 }}>
                 <li>
-                  <strong>s.479(1):</strong> release on bail at one-half of the
-                  maximum period; one-third on bond for a first-time offender.
+                  <strong>s.479(1):</strong> {t("sources.bullet479a")}
                 </li>
                 <li>
-                  <strong>Exclusion:</strong> offences specifying death or life
-                  imprisonment are outside s.479.
+                  <strong>{t("sources.labelExclusion")}</strong>{" "}
+                  {t("sources.bulletExclusion")}
                 </li>
                 <li>
-                  <strong>Explanation:</strong> delay caused by the accused is
-                  excluded from the detention computation.
+                  <strong>{t("sources.labelExplanation")}</strong>{" "}
+                  {t("sources.bulletExplanation")}
                 </li>
                 <li>
-                  <strong>s.479(2):</strong> multiple cases or offences pending
-                  means the person shall not be released on bail.
+                  <strong>s.479(2):</strong> {t("sources.bullet479b")}
                 </li>
                 <li>
-                  <strong>Third proviso:</strong> the court may order continued
-                  detention beyond one-half after hearing the Public Prosecutor,
-                  for recorded reasons.
+                  <strong>{t("sources.labelThird")}</strong> {t("sources.bulletThird")}
                 </li>
                 <li>
-                  <strong>Fourth proviso:</strong> never detained beyond the
-                  maximum period for the offence.
+                  <strong>{t("sources.labelFourth")}</strong>{" "}
+                  {t("sources.bulletFourth")}
                 </li>
                 <li>
-                  <strong>s.479(3):</strong> the jail Superintendent must apply
-                  to the court forthwith when the period is complete.
+                  <strong>s.479(3):</strong> {t("sources.bullet479c")}
                 </li>
               </ul>
             </section>
@@ -118,48 +124,58 @@ export default function Sources() {
             <section className="folio">
               <div className="folio-head">
                 <span className="folio-mark">02</span>
-                <h2>BNS maximum sentences in the engine</h2>
+                <h2>{t("sources.s2.title")}</h2>
               </div>
               <p>
-                Authority:{" "}
-                <a
-                  href="https://www.indiacode.nic.in/handle/123456789/20062"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Bharatiya Nyaya Sanhita, 2023, India Code
-                </a>
-                . Punishment clauses were checked against the BNS text mirrors on
-                devgan.in on 6 November 2026. Only these eleven entries are
-                computable. An IPC-era charge must go through the DLSA.
+                <RichText
+                  template={t("sources.bnsAuthority")}
+                  values={{
+                    authority: (
+                      <a
+                        href="https://www.indiacode.nic.in/handle/123456789/20062"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {t("sources.bnsAuthorityLink")}
+                      </a>
+                    ),
+                  }}
+                />{" "}
+                {t("sources.bnsAuthorityNote")}
               </p>
               <div className="table-scroll">
                 <table className="register">
                   <thead>
                     <tr>
-                      <th>Section</th>
-                      <th>Offence</th>
-                      <th>Maximum</th>
-                      <th>Source</th>
+                      <th>{t("sources.colSection")}</th>
+                      <th>{t("sources.colOffence")}</th>
+                      <th>{t("sources.colMaximum")}</th>
+                      <th>{t("sources.colSource")}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {BNS_SECTIONS.map((s) => (
-                      <tr key={s.id}>
-                        <td className="mono row-strong">{s.label}</td>
-                        <td>
-                          {s.title}
-                          <br />
-                          <span className="small">{s.note}</span>
-                        </td>
-                        <td>{s.maxSentenceLabel}</td>
-                        <td className="small">
-                          <a href={s.sourceUrl} target="_blank" rel="noreferrer">
-                            India Code
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
+                    {BNS_SECTIONS.map((s) => {
+                      const titleKey = bnsTitleKey(s.id);
+                      const maxKey = bnsMaxKey(s.id);
+                      return (
+                        <tr key={s.id}>
+                          <td className="mono row-strong">{s.label}</td>
+                          <td>
+                            {titleKey ? t(titleKey) : s.title}
+                            <br />
+                            <span className="small" lang="en">
+                              {s.note}
+                            </span>
+                          </td>
+                          <td>{maxKey ? t(maxKey) : s.maxSentenceLabel}</td>
+                          <td className="small">
+                            <a href={s.sourceUrl} target="_blank" rel="noreferrer">
+                              {t("sources.indiaCode")}
+                            </a>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -168,108 +184,141 @@ export default function Sources() {
             <section className="folio">
               <div className="folio-head">
                 <span className="folio-mark">03</span>
-                <h2>National scale, NCRB 2024</h2>
+                <h2>{t("sources.s3.title")}</h2>
               </div>
               <p>
-                <strong>{NCRB_2024.totalPrisonersEnd2024.toLocaleString("en-IN")}</strong>{" "}
-                prisoners at end-2024, of which{" "}
-                <strong>
-                  {NCRB_2024.undertrialsEnd2024.toLocaleString("en-IN")} undertrials
-                  ({NCRB_2024.undertrialSharePct}%)
-                </strong>
-                . Roughly three in four prisoners were awaiting trial. Source:{" "}
-                {NCRB_2024.report}.{" "}
-                <a href={NCRB_2024.reportUrl} target="_blank" rel="noreferrer">
-                  Report PDF
-                </a>
-                .
+                <RichText
+                  template={t("sources.ncrb")}
+                  values={{
+                    total: (
+                      <strong>
+                        {NCRB_2024.totalPrisonersEnd2024.toLocaleString("en-IN")}
+                      </strong>
+                    ),
+                    undertrials: (
+                      <strong>
+                        {NCRB_2024.undertrialsEnd2024.toLocaleString("en-IN")}
+                      </strong>
+                    ),
+                    share: <strong>{NCRB_2024.undertrialSharePct}</strong>,
+                    report: NCRB_2024.report,
+                    link: (
+                      <a href={NCRB_2024.reportUrl} target="_blank" rel="noreferrer">
+                        {t("sources.reportPdf")}
+                      </a>
+                    ),
+                  }}
+                />
               </p>
-              <p className="small">
-                Cross-checked on 6 November 2026 against the World Prison Brief
-                India page (31 December 2024, NCRB) and News Minute DataViz
-                (371,440 undertrials, up from 237,076 in 2005).
-              </p>
+              <p className="small">{t("sources.ncrbCheck")}</p>
             </section>
 
             <section className="folio">
               <div className="folio-head">
                 <span className="folio-mark">04</span>
-                <h2>State undertrial row, data.gov.in</h2>
+                <h2>{t("sources.s4.title")}</h2>
               </div>
               <p>
-                Resource: <strong>{DATA_GOV_RESOURCE_TITLE}</strong>. Period:{" "}
-                {DATA_GOV_PERIOD}. Publisher: National Crime Records Bureau,
-                Ministry of Home Affairs, published on data.gov.in.{" "}
-                <a href={DATA_GOV_SOURCE_URL} target="_blank" rel="noreferrer">
-                  API record
-                </a>
-                .
+                <RichText
+                  template={t("sources.dataGov")}
+                  values={{
+                    resource: <strong>{DATA_GOV_RESOURCE_TITLE}</strong>,
+                    period: DATA_GOV_PERIOD,
+                    link: (
+                      <a href={DATA_GOV_SOURCE_URL} target="_blank" rel="noreferrer">
+                        {t("sources.dataGovLink")}
+                      </a>
+                    ),
+                  }}
+                />
               </p>
-              <p className="small">
-                The state row is fetched live on <code>/api/state-context</code>{" "}
-                and cached for six hours. If the API rate-limits or the state is
-                missing, the page says “not published” or “rate-limited”. The
-                national 2024 figure and the state 2022 row are shown side by
-                side, never merged. The “share of national total” is labelled an
-                estimate because it divides two different years.
-              </p>
+              <p className="small">{t("sources.dataGovNote")}</p>
             </section>
 
             <section className="folio">
               <div className="folio-head">
                 <span className="folio-mark">05</span>
-                <h2>Free legal aid, Section 12</h2>
+                <h2>{t("sources.s5.title")}</h2>
               </div>
               <p>
-                Authority:{" "}
-                <a href={NALSA_ACT_URL} target="_blank" rel="noreferrer">
-                  the Legal Services Authorities Act, 1987, on NALSA
-                </a>
-                . The category list and the State-wise income ceiling table are
-                reproduced from{" "}
-                <a href={NALSA_LEGAL_AID_URL} target="_blank" rel="noreferrer">
-                  NALSA's legal-aid page
-                </a>{" "}
-                on {INCOME_TABLE_ACCESSED_ON}. The Supreme Court ceiling of
-                ₹5,00,000 is from the same NALSA FAQ. State Governments may
-                revise the limits.
+                <RichText
+                  template={t("sources.aidAuthority")}
+                  values={{
+                    act: (
+                      <a href={NALSA_ACT_URL} target="_blank" rel="noreferrer">
+                        {t("sources.actNalsaLink")}
+                      </a>
+                    ),
+                  }}
+                />{" "}
+                <RichText
+                  template={t("sources.aidAuthorityNote")}
+                  values={{
+                    page: (
+                      <a href={NALSA_LEGAL_AID_URL} target="_blank" rel="noreferrer">
+                        {t("sources.nalsaAidPage")}
+                      </a>
+                    ),
+                    date: INCOME_TABLE_ACCESSED_ON,
+                  }}
+                />
               </p>
               <p className="small">
-                The checker applies s.12(a) to (h) and the published ceiling. It
-                does not decide the case: s.13(1) requires the Authority to be
-                satisfied that the person has a genuine case. The national
-                helpline is {NALSA_HELPLINE}.{" "}
-                <a href={NALSA_ONLINE_APPLICATION_URL} target="_blank" rel="noreferrer">
-                  NALSA online application
-                </a>
-                .
+                <RichText
+                  template={t("sources.aidNote")}
+                  values={{
+                    helpline: NALSA_HELPLINE,
+                    link: (
+                      <a
+                        href={NALSA_ONLINE_APPLICATION_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {t("sources.nalsaApplication")}
+                      </a>
+                    ),
+                  }}
+                />
               </p>
             </section>
 
             <section className="folio">
               <div className="folio-head">
                 <span className="folio-mark">06</span>
-                <h2>DLSA directory</h2>
+                <h2>{t("sources.s6.title")}</h2>
               </div>
               <p>
-                {summary
-                  ? `${summary.offices} offices across ${summary.states} States/UTs, transcribed on ${summary.accessedOn} from the State Legal Services Authority pages hosted on NALSA.`
-                  : "Loading the directory summary…"}{" "}
-                The vendored CSV is at <code>data/dlsa-contacts.csv</code>; every
-                row carries its source URL and access date.{" "}
-                <a href="/dlsa">Open the DLSA desk</a>.
+                {summary ? (
+                  <RichText
+                    template={t("sources.dlsaSummary")}
+                    values={{
+                      offices: summary.offices,
+                      states: summary.states,
+                      date: summary.accessedOn,
+                    }}
+                  />
+                ) : (
+                  t("sources.loadingSummary")
+                )}{" "}
+                <RichText
+                  template={t("sources.dlsaNote")}
+                  values={{
+                    path: <code>data/dlsa-contacts.csv</code>,
+                    link: <a href="/dlsa">{t("sources.openDlsa")}</a>,
+                  }}
+                />
               </p>
               {summary && (
                 <>
-                  <p className="small">{summary.caveat}</p>
+                  <p className="small">{t("dlsa.caveat")}</p>
                   <div className="table-scroll">
                     <table className="register">
                       <thead>
                         <tr>
-                          <th>State / UT</th>
-                          <th className="num">Offices</th>
-                          <th>Source page</th>
-                          <th>Accessed</th>
+                          <th>{t("sources.colState")}</th>
+                          <th className="num">{t("sources.colOffices")}</th>
+                          <th>{t("sources.colSourcePage")}</th>
+                          <th>{t("sources.colAccessed")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -279,7 +328,7 @@ export default function Sources() {
                             <td className="num">{r.offices}</td>
                             <td className="small">
                               <a href={r.sourceUrl} target="_blank" rel="noreferrer">
-                                NALSA state page
+                                {t("common.nalsaPage")}
                               </a>
                             </td>
                             <td className="mono small">{summary.accessedOn}</td>
@@ -295,31 +344,22 @@ export default function Sources() {
             <section className="folio">
               <div className="folio-head">
                 <span className="folio-mark">07</span>
-                <h2>What is estimated, and what is not</h2>
+                <h2>{t("sources.s7.title")}</h2>
               </div>
               <ul className="small" style={{ paddingLeft: 18 }}>
                 <li>
-                  <strong>Not estimated:</strong> prisoner records, DLSA phone
-                  numbers, addresses, sentences, eligibility dates, legal-aid
-                  outcomes, releases.
+                  <strong>{t("sources.notEstimated")}</strong>{" "}
+                  {t("sources.estimatedNot")}
                 </li>
                 <li>
-                  <strong>Labelled estimate:</strong> a State's share of the
-                  2024 national undertrial total, computed from the 2022 State
-                  row and the 2024 national figure. The two years are printed
-                  beside it.
+                  <strong>{t("sources.estimatedLabel")}</strong>{" "}
+                  {t("sources.estimatedText")}
                 </li>
                 <li>
-                  <strong>Not live:</strong> the DLSA directory is a vendored
-                  transcription, not a scrape. West Bengal and Maharashtra list
-                  only the first directory page; other districts are marked not
-                  yet sourced.
+                  <strong>{t("sources.liveNot")}</strong> {t("sources.liveText")}
                 </li>
                 <li>
-                  <strong>Not legal advice:</strong> every page and every
-                  generated document carries the disclaimer. A DLSA advocate or
-                  the jail Superintendent must verify the file before it is
-                  signed or filed.
+                  <strong>{t("sources.adviceNot")}</strong> {t("sources.adviceText")}
                 </li>
               </ul>
             </section>
@@ -327,44 +367,48 @@ export default function Sources() {
             <section className="folio">
               <div className="folio-head">
                 <span className="folio-mark">08</span>
-                <h2>Live dependency probe</h2>
+                <h2>{t("sources.s8.title")}</h2>
               </div>
               <p className="small">
-                The probe reports what actually responded. NJDG publishes HTML
-                dashboards, not JSON; this app links to{" "}
-                <a href={NJDG_DASHBOARD_URL} target="_blank" rel="noreferrer">
-                  the dashboard
-                </a>{" "}
-                and does not invent pendency medians.
+                <RichText
+                  template={t("sources.probe")}
+                  values={{
+                    link: (
+                      <a href={NJDG_DASHBOARD_URL} target="_blank" rel="noreferrer">
+                        {t("sources.probeLink")}
+                      </a>
+                    ),
+                  }}
+                />
               </p>
               <details>
                 <summary className="small" style={{ cursor: "pointer" }}>
-                  Show the raw probe
+                  {t("sources.showProbe")}
                 </summary>
-                <pre className="verbatim" style={{ marginTop: 12 }}>
+                <pre className="verbatim" dir="ltr" style={{ marginTop: 12 }}>
                   {JSON.stringify(health, null, 2)}
                 </pre>
               </details>
             </section>
           </div>
 
-          <aside className="rail" aria-label="Source register">
+          <aside className="rail" aria-label={t("sources.asideLabel")}>
             <div className="rail-block">
-              <p className="rail-title">Source register</p>
+              <p className="rail-title">{t("sources.sourceRegister")}</p>
               <div className="source-list">
                 <div className="source-row">
                   <div>
-                    <span className="source-name">BNSS, 2023</span>
-                    <span className="source-detail">Section 479 release clock.</span>
+                    <span className="source-name">{t("sources.srcBnss")}</span>
+                    <span className="source-detail">{t("sources.srcBnssDetail")}</span>
                   </div>
                   <a className="source-link" href={BNSS479_SOURCE_URL} target="_blank" rel="noreferrer">
-                    India Code
+                    {t("sources.indiaCode")}
                   </a>
                 </div>
                 <div className="source-row">
                   <div>
-                    <span className="source-name">BNS, 2023</span>
-                    <span className="source-detail">Maximum sentences.</span>
+                    <span className="source-name">{t("sources.srcBns")}</span>
+                    <span className="source-detail">{t("sources.srcBnsDetail")}</span>
                   </div>
                   <a
                     className="source-link"
@@ -372,55 +416,50 @@ export default function Sources() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    India Code
+                    {t("sources.indiaCode")}
                   </a>
                 </div>
                 <div className="source-row">
                   <div>
-                    <span className="source-name">NCRB PSI 2024</span>
-                    <span className="source-detail">National prison scale.</span>
+                    <span className="source-name">{t("sources.srcNcrb")}</span>
+                    <span className="source-detail">{t("sources.srcNcrbDetail")}</span>
                   </div>
                   <a className="source-link" href={NCRB_2024.reportUrl} target="_blank" rel="noreferrer">
-                    Report PDF
+                    {t("sources.reportPdf")}
                   </a>
                 </div>
                 <div className="source-row">
                   <div>
-                    <span className="source-name">data.gov.in</span>
-                    <span className="source-detail">State undertrial row, 2022.</span>
+                    <span className="source-name">{t("sources.srcDataGov")}</span>
+                    <span className="source-detail">{t("sources.srcDataGovDetail")}</span>
                   </div>
                   <a className="source-link" href={DATA_GOV_SOURCE_URL} target="_blank" rel="noreferrer">
-                    API record
+                    {t("sources.dataGovLink")}
                   </a>
                 </div>
                 <div className="source-row">
                   <div>
-                    <span className="source-name">NALSA</span>
-                    <span className="source-detail">s.12 categories and income table.</span>
+                    <span className="source-name">{t("sources.srcNalsa")}</span>
+                    <span className="source-detail">{t("sources.srcNalsaDetail")}</span>
                   </div>
                   <a className="source-link" href={NALSA_LEGAL_AID_URL} target="_blank" rel="noreferrer">
-                    Legal aid
+                    {t("sources.legalAid")}
                   </a>
                 </div>
                 <div className="source-row">
                   <div>
-                    <span className="source-name">NALSA DLSA pages</span>
-                    <span className="source-detail">10 States/UTs, 157 offices.</span>
+                    <span className="source-name">{t("sources.srcNalsaDlsa")}</span>
+                    <span className="source-detail">{t("sources.srcNalsaDlsaDetail")}</span>
                   </div>
                   <a className="source-link" href="https://nalsa.gov.in/" target="_blank" rel="noreferrer">
-                    NALSA
+                    {t("sources.srcNalsa")}
                   </a>
                 </div>
               </div>
             </div>
             <div className="rail-block">
-              <p className="rail-title">Access date</p>
-              <p className="rail-note">
-                Statutes, NCRB, NALSA and DLSA pages checked on 6 November 2026.
-                The data.gov.in row is fetched at request time and cached for six
-                hours. Every date on the site is printed with the figure it
-                belongs to.
-              </p>
+              <p className="rail-title">{t("sources.accessTitle")}</p>
+              <p className="rail-note">{t("sources.accessNote")}</p>
             </div>
           </aside>
         </div>

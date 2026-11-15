@@ -2,6 +2,8 @@
 
 > **Legal information tool, not legal advice. Verify with DLSA/advocate.**
 
+**Built in** [AgentFoundry](https://agentfoundry.me) (AF), the official IDE for Code for a Billion.
+
 ## The problem (wanted)
 
 BNSS Section 479 *mandates* release of undertrials at **1/3 of the maximum sentence for first-time offenders, 1/2 otherwise** — but nothing computes those dates. Jail registers are manual; families don't know the fraction; the statutory 1/3–1/2 clock runs silently while people sit past the legal limit. This is a computation gap, not an information gap — which is why this is **not a Q&A chatbot**: it produces **release eligibility dates + filed-ready draft applications + an over-detained list**.
@@ -60,6 +62,34 @@ Node ≥ 20 (tested 24.22.0). SQLite via Node's built-in `node:sqlite` — no na
 3. **Filing loop:** for each ELIGIBLE_NOW row, generate draft, have the DLSA panel advocate review, file with the court, mark `APPLICATION_FILED`; follow the s.479(3) Superintendent application; mark `RELEASED` only on verified order.
 4. **Going to scale:** add a data.gov.in API key (free registration) and wire the exact Civil Pendency resource into `/api/health`; pin the NJDG dashboard link into the district's DLSA page. Contribute the district's anonymized screened/over-detained/release counts back via the metrics block.
 5. **What this MVP does not do:** eCourts scraping (none), legal advice (disclaimer everywhere), IPC-era sentence values (BNS entries only — IPC charges need DLSA mapping), calendar-year day-count litigation (365-day arithmetic, flagged in the UI).
+
+## Languages
+
+The interface is available in **eleven languages**: English (`en`, source), Hindi
+(`hi`), Bengali (`bn`), Marathi (`mr`), Telugu (`te`), Tamil (`ta`), Gujarati
+(`gu`), Urdu (`ur`, right-to-left), Kannada (`kn`), Odia (`or`) and Malayalam
+(`ml`). Pick one from the switcher in the header; it is present on every route.
+
+- **Persistence.** The switcher writes the locale to the `i18n_locale` cookie
+  (one year) and to `localStorage`, then calls `router.refresh()` so server
+  components re-render. On the next visit the cookie is read server-side, so the
+  first paint already has the right `<html lang dir>`; `localStorage` is a
+  fallback for a stale cookie.
+- **Dictionaries.** `lib/i18n/messages/en.ts` is the source of truth — every key
+  and its exact English copy. Each other locale is a `Partial` of that map in
+  `lib/i18n/messages/<code>.ts`; missing keys fall back to English at runtime, so
+  an incomplete translation never shows a raw key.
+- **Adding a key.** Add `"namespace.name": "Exact English copy"` to
+  `en.ts` (use `{placeholders}` inside one whole sentence, never string
+  concatenation), call `t("namespace.name", { … })` from a server component via
+  `getI18n()` or a client component via `useI18n()`, then run
+  `node scripts/check-i18n.mjs` to see what translators still owe.
+- **English-only documents.** The printable application and the court-facing
+  draft stay in English by design (`lib/application.ts`, `lib/draftTemplate.ts`,
+  `components/ApplicationSheet.tsx`). The document container carries `lang="en"`
+  and a translated `doc.englishOnly` note; the Hindi family summary is a separate,
+  fixed Hindi sheet. Statute names, section numbers, court, jail and DLSA names
+  are never translated.
 
 ## Layout
 

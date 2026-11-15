@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/components/I18nProvider";
 
 /**
  * The custody clock, kept in the corner of the file.
@@ -21,6 +22,7 @@ export default function FloatingClock({
   status: string;
   eligibilityDate: string | null;
 }) {
+  const { t } = useI18n();
   const [shown, setShown] = useState(false);
 
   useEffect(() => {
@@ -39,20 +41,28 @@ export default function FloatingClock({
   const over = daysServed - thresholdDays;
 
   return (
-    <aside className={`float-clock ${status === "ELIGIBLE_NOW" || over >= 0 ? "is-due" : ""}`} aria-label="Custody clock">
-      <p className="fc-label">Days in custody</p>
+    <aside className={`float-clock ${status === "ELIGIBLE_NOW" || over >= 0 ? "is-due" : ""}`} aria-label={t("clock.label")}>
+      <p className="fc-label">{t("clock.days")}</p>
       <p className="fc-served">
-        {daysServed.toLocaleString("en-IN")}
-        <span> of {thresholdDays.toLocaleString("en-IN")} required</span>
+        {t("clock.ofRequired", {
+          served: daysServed.toLocaleString("en-IN"),
+          required: thresholdDays.toLocaleString("en-IN"),
+        })}
       </p>
       <div className="fc-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
         <span style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
       <p className="fc-note">
         {over >= 0
-          ? `Over the limit by ${over.toLocaleString("en-IN")} ${over === 1 ? "day" : "days"}`
-          : `${Math.abs(over).toLocaleString("en-IN")} days still to serve`}
-        {eligibilityDate && over >= 0 && <em> · due {eligibilityDate}</em>}
+          ? over === 1
+            ? t("clock.overOne")
+            : t("clock.overMany", { days: over.toLocaleString("en-IN") })
+          : Math.abs(over) === 1
+            ? t("clock.remainingOne")
+            : t("clock.remainingMany", { days: Math.abs(over).toLocaleString("en-IN") })}
+        {eligibilityDate && over >= 0 && (
+          <em> {t("clock.due", { date: eligibilityDate })}</em>
+        )}
       </p>
     </aside>
   );

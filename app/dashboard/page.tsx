@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { BNS_SECTIONS } from "@/lib/bns";
+import { useI18n } from "@/components/I18nProvider";
+import RichText from "@/components/RichText";
+import type { MessageKey } from "@/lib/i18n/messages/en";
 
 interface Prisoner {
   id: string;
@@ -25,16 +28,17 @@ interface Prisoner {
 const CSV_HEADER =
   "prisoner_name,case_no,court,section_ids,detention_start,first_time,pending_other,accused_delay_days,contact_note";
 
-const STATUS_LABEL: Record<string, string> = {
-  ELIGIBLE_NOW: "Eligible now",
-  CEILING_BREACHED: "Ceiling breached",
-  NOT_YET: "Not yet",
-  BLOCKED_PENDING_OTHER_CASES: "Blocked by s.479(2)",
-  EXCLUDED_DEATH_LIFE: "Outside s.479",
-  UNKNOWN_SECTION: "Check the charge",
+const STATUS_LABEL: Record<string, MessageKey> = {
+  ELIGIBLE_NOW: "status.ELIGIBLE_NOW.stamp",
+  CEILING_BREACHED: "status.CEILING_BREACHED.stamp",
+  NOT_YET: "status.NOT_YET.stamp",
+  BLOCKED_PENDING_OTHER_CASES: "status.BLOCKED_PENDING_OTHER_CASES.stamp",
+  EXCLUDED_DEATH_LIFE: "status.EXCLUDED_DEATH_LIFE.stamp",
+  UNKNOWN_SECTION: "status.UNKNOWN_SECTION.stamp",
 };
 
 export default function Dashboard() {
+  const { t } = useI18n();
   const [rows, setRows] = useState<Prisoner[]>([]);
   const [csv, setCsv] = useState("");
   const [importResult, setImportResult] = useState("");
@@ -52,6 +56,28 @@ export default function Dashboard() {
     load();
   }, []);
 
+  // The import route reports fixed diagnostic strings. Map them to keys so the
+  // register reads in the visitor's language; unknown details fall back as-is.
+  const importMessage = (message: string): string => {
+    if (message === "Missing prisoner_name / case_no / detention_start / section_ids.") {
+      return t("dashboard.importMissing");
+    }
+    if (message === "detention_start must be YYYY-MM-DD.") {
+      return t("dashboard.importBadDate");
+    }
+    const unsupported = /^Unsupported section id\(s\): (.*)\. See \/sources for supported ids\.$/.exec(
+      message
+    );
+    if (unsupported) {
+      return t("dashboard.importUnsupported", { ids: unsupported[1] });
+    }
+    const imported = /^Imported: (.*) \((.*)\)\.$/.exec(message);
+    if (imported) {
+      return t("dashboard.importedRow", { name: imported[1], caseNo: imported[2] });
+    }
+    return message;
+  };
+
   const importCsv = async () => {
     const res = await fetch("/api/import", {
       method: "POST",
@@ -59,30 +85,43 @@ export default function Dashboard() {
       body: JSON.stringify({ csv }),
     });
     const json = await res.json();
-    setImportResult(
-      `Imported ${json.imported ?? 0} of ${json.total ?? 0} rows.\n` +
-        (json.results ?? [])
-          .map(
-            (r: { line: number; ok: boolean; message: string }) =>
-              `Line ${r.line}: ${r.ok ? "ok" : "failed"}: ${r.message}`
-          )
-          .join("\n") +
-        (json.error ? `\nError: ${json.error}` : "")
-    );
+    const lines = [
+      t("dashboard.importSummary", {
+        imported: json.imported ?? 0,
+        total: json.total ?? 0,
+      }),
+      ...(json.results ?? []).map(
+        (r: { line: number; ok: boolean; message: string }) =>
+          t("dashboard.importLine", {
+            line: r.line,
+            result: r.ok ? t("dashboard.importOk") : t("dashboard.importFailed"),
+            message: importMessage(r.message),
+          })
+      ),
+    ];
+    if (json.error) {
+      lines.push(t("dashboard.importError", { error: json.error }));
+    }
+    setImportResult(lines.join("\n"));
     load();
   };
 
   const importSample = async () => {
     const res = await fetch("/api/sample", { method: "POST" });
     const json = await res.json();
-    setMsg(`Sample import: ${json.imported} rows. ${json.warning}`);
+    setMsg(
+      t("dashboard.sampleImported", {
+        imported: json.imported,
+        warning: t("dashboard.demoWarning"),
+      })
+    );
     load();
   };
 
   const clearSample = async () => {
     const res = await fetch("/api/sample", { method: "DELETE" });
     const json = await res.json();
-    setMsg(`Cleared ${json.deleted} demo sample rows.`);
+    setMsg(t("dashboard.sampleCleared", { deleted: json.deleted }));
     load();
   };
 
@@ -117,57 +156,62 @@ export default function Dashboard() {
     <div className="screen-only">
       <div className="shell">
         <header className="page-head">
-          <p className="page-kicker">District Legal Services Authority</p>
-          <h1>DLSA register</h1>
-          <p className="lede">
-            Every screened undertrial against the court-computed 1/3 or 1/2
-            date. The register starts empty. Rows enter only through a jail or
-            DLSA CSV import, or through the clearly badged demo sample. Demo rows
-            never count in metrics.
-          </p>
+          <p className="page-kicker">{t("dashboard.kicker")}</p>
+          <h1>{t("dashboard.title")}</h1>
+          <p className="lede">{t("dashboard.lede")}</p>
         </header>
 
         <div className="case-layout" style={{ paddingTop: 28 }}>
           <div className="document">
             <div className="register-head">
               <div className="register-counts">
-                <span>
-                  <strong>{realRows.length}</strong> real rows
-                </span>
-                <span>
-                  <strong>{demoRows}</strong> demo rows
-                </span>
-                <span>
-                  <strong>{overDetained.length}</strong> over the limit
-                </span>
-                <span>
-                  <strong>{blocked.length}</strong> blocked by s.479(2)
-                </span>
+                <RichText
+                  template={t("dashboard.realRows")}
+                  values={{ count: <strong>{realRows.length}</strong> }}
+                />
+                <RichText
+                  template={t("dashboard.demoRows")}
+                  values={{ count: <strong>{demoRows}</strong> }}
+                />
+                <RichText
+                  template={t("dashboard.overLimit")}
+                  values={{ count: <strong>{overDetained.length}</strong> }}
+                />
+                <RichText
+                  template={t("dashboard.blocked")}
+                  values={{ count: <strong>{blocked.length}</strong> }}
+                />
               </div>
             </div>
 
             <section className="folio" style={{ paddingTop: 0 }}>
               <div className="folio-head">
-                <span className="folio-mark">Import</span>
-                <h2>Jail or DLSA CSV</h2>
+                <span className="folio-mark">{t("dashboard.importMark")}</span>
+                <h2>{t("dashboard.importTitle")}</h2>
               </div>
               <details>
                 <summary className="small" style={{ cursor: "pointer" }}>
-                  Show the import box and column format
+                  {t("dashboard.importShow")}
                 </summary>
                 <p className="small" style={{ marginTop: 12 }}>
-                  Required header: <code>{CSV_HEADER}</code>.{" "}
-                  <code>section_ids</code> is semicolon-separated supported ids
-                  (e.g. <code>bns303;bns117</code>). <code>detention_start</code>{" "}
-                  is YYYY-MM-DD; flags are 1/0. Quoted fields may contain commas.
+                  <RichText
+                    template={t("dashboard.importHelp")}
+                    values={{
+                      header: <code>{CSV_HEADER}</code>,
+                      sectionIds: <code>section_ids</code>,
+                      example: <code>bns303;bns117</code>,
+                      start: <code>detention_start</code>,
+                    }}
+                  />
                 </p>
                 <div className="field" style={{ marginTop: 10 }}>
                   <label htmlFor="csv" className="sr-only">
-                    CSV rows
+                    {t("dashboard.csvRows")}
                   </label>
                   <textarea
                     id="csv"
                     rows={7}
+                    dir="ltr"
                     value={csv}
                     onChange={(e) => setCsv(e.target.value)}
                     placeholder={`${CSV_HEADER}\nMeena Rani,DC 88/2025,District Court,bns303,2024-02-01,1,0,0,phone on file`}
@@ -175,64 +219,61 @@ export default function Dashboard() {
                 </div>
                 <div className="btn-row">
                   <button className="btn" onClick={importCsv}>
-                    Import CSV
+                    {t("dashboard.importCsv")}
                   </button>
                   <button className="btn secondary" onClick={importSample}>
-                    Insert demo sample rows
+                    {t("dashboard.insertSample")}
                   </button>
                   <button className="btn secondary" onClick={clearSample}>
-                    Clear demo rows
+                    {t("dashboard.clearDemo")}
                   </button>
                 </div>
                 <p className="small" style={{ marginTop: 10 }}>
-                  Supported section ids:{" "}
-                  {BNS_SECTIONS.map((s) => s.id).join(", ")}.
+                  {t("dashboard.supportedIds", {
+                    ids: BNS_SECTIONS.map((s) => s.id).join(", "),
+                  })}
                 </p>
-                {importResult && <pre className="verbatim" style={{ marginTop: 12 }}>{importResult}</pre>}
+                {importResult && (
+                  <pre className="verbatim" dir="ltr" style={{ marginTop: 12 }}>
+                    {importResult}
+                  </pre>
+                )}
                 {msg && <div className="notice warn">{msg}</div>}
               </details>
             </section>
 
             <section className="folio">
               <div className="folio-head">
-                <span className="folio-mark">Register</span>
-                <h2>Over-detained ({overDetained.length})</h2>
+                <span className="folio-mark">{t("dashboard.registerMark")}</span>
+                <h2>{t("dashboard.overTitle", { count: overDetained.length })}</h2>
               </div>
 
               {loading ? (
-                <p className="small">Reading the register…</p>
+                <p className="small">{t("common.readingRegister")}</p>
               ) : rows.length === 0 ? (
                 <div className="empty-state">
-                  <h3>No prisoners screened yet</h3>
-                  <p>
-                    Import the jail or DLSA undertrial list as CSV, or insert the
-                    clearly labelled demo rows to preview the over-detained
-                    register. The empty state is deliberate: this tool does not
-                    ship with prisoner records.
-                  </p>
+                  <h3>{t("dashboard.emptyTitle")}</h3>
+                  <p>{t("dashboard.emptyBody")}</p>
                   <div className="btn-row">
                     <button className="btn secondary" onClick={importSample}>
-                      Insert demo sample rows
+                      {t("dashboard.insertSample")}
                     </button>
                   </div>
                 </div>
               ) : overDetained.length === 0 ? (
-                <p className="small">
-                  No row is over the statutory limit today. The full register is
-                  below.
-                </p>
+                <p className="small">{t("dashboard.noOver")}</p>
               ) : (
                 <div className="table-scroll">
                   <table className="register">
                     <thead>
                       <tr>
-                        <th>Prisoner</th>
-                        <th>Case</th>
-                        <th>Release date</th>
-                        <th className="num">Days in</th>
-                        <th className="num">Days over</th>
-                        <th>Status</th>
-                        <th>Action</th>
+                        <th>{t("dashboard.colPrisoner")}</th>
+                        <th>{t("dashboard.colCase")}</th>
+                        <th>{t("dashboard.colReleaseDate")}</th>
+                        <th className="num">{t("dashboard.colDaysIn")}</th>
+                        <th className="num">{t("dashboard.colDaysOver")}</th>
+                        <th>{t("dashboard.colStatus")}</th>
+                        <th>{t("dashboard.colAction")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -241,7 +282,7 @@ export default function Dashboard() {
                           <td>
                             <span className="row-strong">{r.prisoner_name}</span>
                             {r.is_sample === 1 && (
-                              <span className="badge-demo">demo</span>
+                              <span className="badge-demo">{t("dashboard.demoBadge")}</span>
                             )}
                             <br />
                             <span className="small">{r.court}</span>
@@ -252,9 +293,9 @@ export default function Dashboard() {
                           <td className="num alert">{r.eligibility?.daysOverLimit ?? "—"}</td>
                           <td>
                             <span className="small">
-                              {STATUS_LABEL[r.eligibility?.status ?? ""] ??
-                                r.eligibility?.status ??
-                                "—"}
+                              {STATUS_LABEL[r.eligibility?.status ?? ""]
+                                ? t(STATUS_LABEL[r.eligibility?.status ?? ""])
+                                : r.eligibility?.status ?? "—"}
                             </span>
                           </td>
                           <td>
@@ -262,17 +303,22 @@ export default function Dashboard() {
                               className="status-select"
                               value={r.status}
                               onChange={(e) => setStatus(r.id, e.target.value)}
-                              aria-label={`Status for ${r.prisoner_name}`}
+                              aria-label={t("dashboard.statusFor", {
+                                name: r.prisoner_name,
+                              })}
                             >
-                              <option>SCREENED</option>
-                              <option>APPLICATION_FILED</option>
-                              <option>RELEASED</option>
+                              <option value="SCREENED">
+                                {t("dashboard.statusScreened")}
+                              </option>
+                              <option value="APPLICATION_FILED">
+                                {t("dashboard.statusFiled")}
+                              </option>
+                              <option value="RELEASED">
+                                {t("dashboard.statusReleased")}
+                              </option>
                             </select>{" "}
-                            <button
-                              className="link-quiet"
-                              onClick={() => remove(r.id)}
-                            >
-                              Delete
+                            <button className="link-quiet" onClick={() => remove(r.id)}>
+                              {t("common.delete")}
                             </button>
                           </td>
                         </tr>
@@ -286,63 +332,78 @@ export default function Dashboard() {
             {rows.length > 0 && (
               <section className="folio">
                 <div className="folio-head">
-                  <span className="folio-mark">All rows</span>
-                  <h2>Every screened undertrial ({rows.length})</h2>
+                  <span className="folio-mark">{t("dashboard.allMark")}</span>
+                  <h2>{t("dashboard.allTitle", { count: rows.length })}</h2>
                 </div>
                 <div className="table-scroll">
                   <table className="register">
                     <thead>
                       <tr>
-                        <th>Prisoner</th>
-                        <th>Case</th>
-                        <th>Charges</th>
-                        <th>Start</th>
-                        <th>Fraction</th>
-                        <th>Computation</th>
-                        <th>Status</th>
+                        <th>{t("dashboard.colPrisoner")}</th>
+                        <th>{t("dashboard.colCase")}</th>
+                        <th>{t("dashboard.colCharges")}</th>
+                        <th>{t("dashboard.colStart")}</th>
+                        <th>{t("dashboard.colFraction")}</th>
+                        <th>{t("dashboard.colComputation")}</th>
+                        <th>{t("dashboard.colStatus")}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {rows.map((r) => (
-                        <tr key={r.id}>
-                          <td>
-                            <span className="row-strong">{r.prisoner_name}</span>
-                            {r.is_sample === 1 && (
-                              <span className="badge-demo">demo</span>
-                            )}
-                          </td>
-                          <td className="mono">{r.case_no}</td>
-                          <td className="mono">{r.sectionIds.join(", ") || "—"}</td>
-                          <td className="mono">{r.detention_start}</td>
-                          <td>{r.first_time === 1 ? "1/3 on bond" : "1/2 on bail"}</td>
-                          <td className="small">
-                            {STATUS_LABEL[r.eligibility?.status ?? ""] ??
-                              r.eligibility?.status ??
-                              "error"}
-                            {r.eligibility?.eligibilityDate
-                              ? `, ${r.eligibility.eligibilityDate}`
-                              : ""}
-                          </td>
-                          <td>
-                            <select
-                              className="status-select"
-                              value={r.status}
-                              onChange={(e) => setStatus(r.id, e.target.value)}
-                              aria-label={`Status for ${r.prisoner_name}`}
-                            >
-                              <option>SCREENED</option>
-                              <option>APPLICATION_FILED</option>
-                              <option>RELEASED</option>
-                            </select>{" "}
-                            <button
-                              className="link-quiet"
-                              onClick={() => remove(r.id)}
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {rows.map((r) => {
+                        const statusKey = STATUS_LABEL[r.eligibility?.status ?? ""];
+                        const statusLabel = statusKey
+                          ? t(statusKey)
+                          : r.eligibility?.status ?? t("common.error");
+                        return (
+                          <tr key={r.id}>
+                            <td>
+                              <span className="row-strong">{r.prisoner_name}</span>
+                              {r.is_sample === 1 && (
+                                <span className="badge-demo">{t("dashboard.demoBadge")}</span>
+                              )}
+                            </td>
+                            <td className="mono">{r.case_no}</td>
+                            <td className="mono">{r.sectionIds.join(", ") || "—"}</td>
+                            <td className="mono">{r.detention_start}</td>
+                            <td>
+                              {r.first_time === 1
+                                ? t("dashboard.fractionBond")
+                                : t("dashboard.fractionBail")}
+                            </td>
+                            <td className="small">
+                              {r.eligibility?.eligibilityDate
+                                ? t("dashboard.computationWithDate", {
+                                    status: statusLabel,
+                                    date: r.eligibility.eligibilityDate,
+                                  })
+                                : statusLabel}
+                            </td>
+                            <td>
+                              <select
+                                className="status-select"
+                                value={r.status}
+                                onChange={(e) => setStatus(r.id, e.target.value)}
+                                aria-label={t("dashboard.statusFor", {
+                                  name: r.prisoner_name,
+                                })}
+                              >
+                                <option value="SCREENED">
+                                  {t("dashboard.statusScreened")}
+                                </option>
+                                <option value="APPLICATION_FILED">
+                                  {t("dashboard.statusFiled")}
+                                </option>
+                                <option value="RELEASED">
+                                  {t("dashboard.statusReleased")}
+                                </option>
+                              </select>{" "}
+                              <button className="link-quiet" onClick={() => remove(r.id)}>
+                                {t("common.delete")}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -350,49 +411,33 @@ export default function Dashboard() {
             )}
           </div>
 
-          <aside className="rail" aria-label="Register notes">
+          <aside className="rail" aria-label={t("dashboard.railLabel")}>
             <div className="rail-block">
-              <p className="rail-title">Filing loop</p>
+              <p className="rail-title">{t("dashboard.filingLoop")}</p>
               <ol className="route-list" style={{ marginTop: 4 }}>
                 <li>
-                  <span className="route-step">Screen</span>
-                  <span className="route-detail">
-                    Import the jail register, then check the charge and custody
-                    date against the case record.
-                  </span>
+                  <span className="route-step">{t("dashboard.stepScreen")}</span>
+                  <span className="route-detail">{t("dashboard.stepScreenDetail")}</span>
                 </li>
                 <li>
-                  <span className="route-step">Draft</span>
-                  <span className="route-detail">
-                    Open a row in the case file, prepare the A4 application, and
-                    have the DLSA panel advocate review it.
-                  </span>
+                  <span className="route-step">{t("dashboard.stepDraft")}</span>
+                  <span className="route-detail">{t("dashboard.stepDraftDetail")}</span>
                 </li>
                 <li>
-                  <span className="route-step">File</span>
-                  <span className="route-detail">
-                    File with the court and the Superintendent under s.479(3).
-                    Mark APPLICATION_FILED only after it is actually filed.
-                  </span>
+                  <span className="route-step">{t("dashboard.stepFile")}</span>
+                  <span className="route-detail">{t("dashboard.stepFileDetail")}</span>
                 </li>
                 <li>
-                  <span className="route-step">Verify</span>
-                  <span className="route-detail">
-                    Mark RELEASED only on a verified court order or jail release
-                    memo.
-                  </span>
+                  <span className="route-step">{t("dashboard.stepVerify")}</span>
+                  <span className="route-detail">{t("dashboard.stepVerifyDetail")}</span>
                 </li>
               </ol>
             </div>
             <div className="rail-block">
-              <p className="rail-title">Counting rule</p>
+              <p className="rail-title">{t("dashboard.countingRule")}</p>
+              <p className="rail-note">{t("dashboard.countingNote")}</p>
               <p className="rail-note">
-                Metrics count real rows only. Demo rows are badged and excluded.
-                One row is one screened undertrial. Never add demo rows to the
-                four submission numbers.
-              </p>
-              <p className="rail-note">
-                <a href="/metrics">Open the metrics register</a>
+                <a href="/metrics">{t("dashboard.openMetrics")}</a>
               </p>
             </div>
           </aside>

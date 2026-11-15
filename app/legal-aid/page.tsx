@@ -13,6 +13,9 @@ import {
   NALSA_LEGAL_AID_URL,
   NALSA_ONLINE_APPLICATION_URL,
 } from "@/lib/incomeLimits";
+import { useI18n } from "@/components/I18nProvider";
+import RichText from "@/components/RichText";
+import type { MessageKey } from "@/lib/i18n/messages/en";
 
 interface DlsaMatch {
   officeName: string;
@@ -31,31 +34,67 @@ interface AidResponse extends LegalAidResult {
   } | null;
 }
 
-const STATUS = {
+type PageError = { key: MessageKey } | { text: string } | null;
+
+const STATUS: Record<
+  "eligible" | "need_info" | "not_eligible",
+  { stamp: MessageKey; cls: string; plain: MessageKey; detail: MessageKey }
+> = {
   eligible: {
-    stamp: "You qualify",
+    stamp: "aid.status.eligible.stamp",
     cls: "green",
-    plain: "A Section 12 category applies",
-    detail:
-      "On the facts you entered, you fall within a Section 12 category. The DLSA still decides eligibility and assigns counsel.",
+    plain: "aid.status.eligible.plain",
+    detail: "aid.status.eligible.detail",
   },
   need_info: {
-    stamp: "Need income",
+    stamp: "aid.status.need_info.stamp",
     cls: "blue",
-    plain: "Income is the only route selected",
-    detail:
-      "Enter the annual income and choose the State/UT, or tick another Section 12 category. The State ceiling decides.",
+    plain: "aid.status.need_info.plain",
+    detail: "aid.status.need_info.detail",
   },
   not_eligible: {
-    stamp: "Not on these facts",
+    stamp: "aid.status.not_eligible.stamp",
     cls: "ink",
-    plain: "No Section 12 category selected",
-    detail:
-      "On the facts entered, none of the Section 12 categories apply. That is not the end of the road: a DLSA officer can review the case.",
+    plain: "aid.status.not_eligible.plain",
+    detail: "aid.status.not_eligible.detail",
   },
-} as const;
+};
+
+const CAT_LABEL: Record<LegalAidCategoryId, MessageKey> = {
+  sc_st: "aid.cat.sc_st.label",
+  trafficking: "aid.cat.trafficking.label",
+  woman: "aid.cat.woman.label",
+  child: "aid.cat.child.label",
+  disability: "aid.cat.disability.label",
+  disaster: "aid.cat.disaster.label",
+  industrial_workman: "aid.cat.industrial_workman.label",
+  in_custody: "aid.cat.in_custody.label",
+  low_income: "aid.cat.low_income.label",
+};
+
+const CAT_DETAIL: Record<LegalAidCategoryId, MessageKey> = {
+  sc_st: "aid.cat.sc_st.detail",
+  trafficking: "aid.cat.trafficking.detail",
+  woman: "aid.cat.woman.detail",
+  child: "aid.cat.child.detail",
+  disability: "aid.cat.disability.detail",
+  disaster: "aid.cat.disaster.detail",
+  industrial_workman: "aid.cat.industrial_workman.detail",
+  in_custody: "aid.cat.in_custody.detail",
+  low_income: "aid.cat.low_income.detail",
+};
+
+const ROUTE_KEYS: Array<{ step: MessageKey; detail: MessageKey }> = [
+  { step: "aid.route1.step", detail: "aid.route1.detail" },
+  { step: "aid.route2.step", detail: "aid.route2.detail" },
+  { step: "aid.route3.step", detail: "aid.route3.detail" },
+  { step: "aid.route4.step", detail: "aid.route4.detail" },
+];
+
+const CAVEAT_KEYS: MessageKey[] = ["aid.caveat1", "aid.caveat2", "aid.caveat3"];
 
 export default function LegalAidPage() {
+  const { t } = useI18n();
   const [categories, setCategories] = useState<LegalAidCategoryId[]>([]);
   const [state, setState] = useState("");
   const [district, setDistrict] = useState("");
@@ -63,7 +102,7 @@ export default function LegalAidPage() {
   const [court, setCourt] = useState<"district" | "high" | "supreme">("district");
   const [result, setResult] = useState<AidResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<PageError>(null);
 
   const toggle = (id: LegalAidCategoryId) =>
     setCategories((ids) =>
@@ -72,10 +111,10 @@ export default function LegalAidPage() {
 
   const check = async () => {
     if (!categories.length) {
-      setError("Tick at least one Section 12 category.");
+      setError({ key: "error.tickCategory" });
       return;
     }
-    setError("");
+    setError(null);
     setLoading(true);
     setResult(null);
     try {
@@ -92,12 +131,12 @@ export default function LegalAidPage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "Could not check eligibility.");
+        setError(json.error ? { text: json.error } : { key: "error.aidRoute" });
         return;
       }
       setResult(json as AidResponse);
     } catch {
-      setError("Could not reach the legal-aid route. Check the connection and try again.");
+      setError({ key: "error.aidNetwork" });
     } finally {
       setLoading(false);
     }
@@ -106,26 +145,42 @@ export default function LegalAidPage() {
   const meta = result ? STATUS[result.status] : null;
   const incomeOnly = categories.length === 1 && categories[0] === "low_income";
 
+  // The income-ceiling sentence is rebuilt from the result fields (court, state,
+  // limit) so it renders in the visitor's language without touching the API.
+  const incomeBasis = (() => {
+    if (!result) return "";
+    if (result.court === "supreme") return t("aid.ceilingSupreme");
+    if (result.incomeLimit !== null && state) {
+      return t("aid.ceilingState", {
+        state,
+        limit: result.incomeLimit.toLocaleString("en-IN"),
+      });
+    }
+    if (state) return t("aid.ceilingNoRow");
+    return t("aid.ceilingChoose");
+  })();
+
+  const clauseList = result
+    ? result.qualifiedBy.length
+      ? result.qualifiedBy.map((q) => q.clause).join(", ")
+      : t("aid.noClause")
+    : "";
+
   return (
     <div className="screen-only">
       <div className="shell">
         <header className="page-head">
-          <p className="page-kicker">Legal Services Authorities Act, 1987</p>
-          <h1>Free legal aid is a statutory right.</h1>
-          <p className="lede">
-            Section 12 lists who is entitled to free legal services. A person in
-            custody is on that list. This checker names the clause that applies,
-            the income ceiling published by NALSA, and the exact office or
-            helpline to use.
-          </p>
+          <p className="page-kicker">{t("aid.kicker")}</p>
+          <h1>{t("aid.title")}</h1>
+          <p className="lede">{t("aid.lede")}</p>
         </header>
 
         <div className="aid-layout">
           <div>
             <section className="folio" style={{ borderTop: 0, paddingTop: 0 }}>
               <div className="folio-head">
-                <span className="folio-mark">Screening</span>
-                <h2>Which Section 12 category applies?</h2>
+                <span className="folio-mark">{t("aid.screeningMark")}</span>
+                <h2>{t("aid.screeningTitle")}</h2>
               </div>
 
               <div>
@@ -138,7 +193,7 @@ export default function LegalAidPage() {
                     />
                     <span className="check-text">
                       <span className="clause">{c.clause}</span>{" "}
-                      <strong>{c.label}.</strong> {c.detail}
+                      <strong>{t(CAT_LABEL[c.id])}.</strong> {t(CAT_DETAIL[c.id])}
                     </span>
                   </label>
                 ))}
@@ -146,39 +201,34 @@ export default function LegalAidPage() {
 
               <div className="form-grid" style={{ marginTop: 24 }}>
                 <div className="field">
-                  <label htmlFor="la-state">State / UT</label>
+                  <label htmlFor="la-state">{t("aid.state")}</label>
                   <select
                     id="la-state"
                     value={state}
                     onChange={(e) => setState(e.target.value)}
                   >
-                    <option value="">Choose a State/UT</option>
+                    <option value="">{t("common.chooseState")}</option>
                     {INCOME_LIMITS.map((r) => (
                       <option key={r.state} value={r.state}>
                         {r.state}
                       </option>
                     ))}
                   </select>
-                  <p className="field-help">
-                    The State ceiling applies to cases outside the Supreme Court.
-                  </p>
+                  <p className="field-help">{t("aid.stateHelp")}</p>
                 </div>
                 <div className="field">
-                  <label htmlFor="la-district">District (for the DLSA route)</label>
+                  <label htmlFor="la-district">{t("aid.district")}</label>
                   <input
                     id="la-district"
                     type="text"
                     value={district}
                     onChange={(e) => setDistrict(e.target.value)}
-                    placeholder="e.g. Ernakulam"
+                    placeholder={t("aid.districtPlaceholder")}
                   />
-                  <p className="field-help">
-                    Optional. If the district is not in the sourced directory,
-                    the route says so.
-                  </p>
+                  <p className="field-help">{t("aid.districtHelp")}</p>
                 </div>
                 <div className="field">
-                  <label htmlFor="la-income">Annual income (₹)</label>
+                  <label htmlFor="la-income">{t("aid.income")}</label>
                   <input
                     id="la-income"
                     type="number"
@@ -186,15 +236,13 @@ export default function LegalAidPage() {
                     inputMode="numeric"
                     value={annualIncome}
                     onChange={(e) => setAnnualIncome(e.target.value)}
-                    placeholder="e.g. 180000"
+                    placeholder={t("aid.incomePlaceholder")}
                     disabled={!categories.includes("low_income")}
                   />
-                  <p className="field-help">
-                    Only used for s.12(h). Tick the income category to enable it.
-                  </p>
+                  <p className="field-help">{t("aid.incomeHelp")}</p>
                 </div>
                 <div className="field">
-                  <label htmlFor="la-court">Where is the case?</label>
+                  <label htmlFor="la-court">{t("aid.court")}</label>
                   <select
                     id="la-court"
                     value={court}
@@ -202,29 +250,29 @@ export default function LegalAidPage() {
                       setCourt(e.target.value as "district" | "high" | "supreme")
                     }
                   >
-                    <option value="district">District court</option>
-                    <option value="high">High Court</option>
-                    <option value="supreme">Supreme Court</option>
+                    <option value="district">{t("aid.courtDistrict")}</option>
+                    <option value="high">{t("aid.courtHigh")}</option>
+                    <option value="supreme">{t("aid.courtSupreme")}</option>
                   </select>
-                  <p className="field-help">
-                    Supreme Court cases use the ₹5,00,000 ceiling in NALSA's FAQ.
-                  </p>
+                  <p className="field-help">{t("aid.courtHelp")}</p>
                 </div>
               </div>
 
               <div className="btn-row">
                 <button className="btn" onClick={check} disabled={loading}>
-                  {loading ? "Checking…" : "Check eligibility"}
+                  {loading ? t("common.checking") : t("aid.check")}
                 </button>
                 <span className="small">
                   {categories.length
-                    ? `${categories.length} categor${categories.length === 1 ? "y" : "ies"} selected`
-                    : "No category selected"}
+                    ? categories.length === 1
+                      ? t("aid.selectedOne")
+                      : t("aid.selectedMany", { count: categories.length })
+                    : t("aid.selectedNone")}
                 </span>
               </div>
               {error && (
                 <div className="notice error" role="alert">
-                  {error}
+                  {"key" in error ? t(error.key) : error.text}
                 </div>
               )}
             </section>
@@ -232,33 +280,39 @@ export default function LegalAidPage() {
             {result && meta && (
               <section className="folio" aria-live="polite">
                 <div className="folio-head">
-                  <span className="folio-mark">Screening result</span>
-                  <h2>{meta.plain}</h2>
+                  <span className="folio-mark">{t("aid.resultMark")}</span>
+                  <h2>{t(meta.plain)}</h2>
                 </div>
 
                 <div className={`verdict-stamp ${meta.cls}`} style={{ marginBottom: 10 }}>
-                  {meta.stamp}
+                  {t(meta.stamp)}
                 </div>
                 <p className="result-clause">
-                  Section 12, Legal Services Authorities Act, 1987 ·{" "}
-                  {result.qualifiedBy.length
-                    ? result.qualifiedBy.map((q) => q.clause).join(", ")
-                    : "no clause matched"}
+                  {t("aid.resultClause", { clauses: clauseList })}
                 </p>
 
-                <p>{meta.detail}</p>
+                <p>{t(meta.detail)}</p>
 
                 {result.qualifiedBy.length > 0 && (
                   <>
-                    <h3>The clauses that apply</h3>
+                    <h3>{t("aid.clausesTitle")}</h3>
                     <ul className="basis-list">
                       {result.qualifiedBy.map((q) => (
                         <li key={q.id}>
                           <div className="basis-head">
                             <span className="clause">{q.clause}</span>
-                            <span className="basis-label">{q.label}</span>
+                            <span className="basis-label">{t(CAT_LABEL[q.id])}</span>
                           </div>
-                          <p className="basis-detail">{q.reason}</p>
+                          <p className="basis-detail">
+                            {q.id === "low_income" &&
+                            result.annualIncome !== null &&
+                            result.incomeLimit !== null
+                              ? t("aid.reasonLowIncome", {
+                                  income: result.annualIncome.toLocaleString("en-IN"),
+                                  limit: result.incomeLimit.toLocaleString("en-IN"),
+                                })
+                              : t(CAT_DETAIL[q.id])}
+                          </p>
                         </li>
                       ))}
                     </ul>
@@ -267,16 +321,17 @@ export default function LegalAidPage() {
 
                 {incomeOnly && result.status === "need_info" && (
                   <div className="notice">
-                    <strong>Income is the only route selected.</strong> Enter the
-                    annual income and choose a State/UT. The State's notified
-                    ceiling is published in the table beside this form.
+                    <strong>{t("aid.incomeOnlyTitle")}</strong>{" "}
+                    {t("aid.incomeOnlyBody")}
                   </div>
                 )}
 
                 <p className="small" style={{ marginTop: 14 }}>
-                  <strong>Income ceiling used:</strong> {result.incomeLimitBasis}{" "}
+                  <strong>{t("aid.ceilingUsed")}</strong> {incomeBasis}{" "}
                   {result.incomeLimit !== null && result.annualIncome !== null
-                    ? `Your figure: ₹${result.annualIncome.toLocaleString("en-IN")}.`
+                    ? t("aid.yourFigure", {
+                        amount: result.annualIncome.toLocaleString("en-IN"),
+                      })
                     : ""}
                 </p>
 
@@ -294,95 +349,112 @@ export default function LegalAidPage() {
                     </a>
                     <div className="office-meta">
                       <span>
-                        <span className="source-tag">Sourced</span>{" "}
+                        <span className="source-tag">{t("common.sourced")}</span>{" "}
                         <a
                           href={result.dlsa.matches[0].sourceUrl}
                           target="_blank"
                           rel="noreferrer"
                         >
-                          NALSA state page
+                          {t("common.nalsaPage")}
                         </a>
                       </span>
-                      <span>Accessed {result.dlsa.matches[0].accessedOn}</span>
+                      <span>
+                        {t("common.accessedDate", {
+                          date: result.dlsa.matches[0].accessedOn,
+                        })}
+                      </span>
                     </div>
                   </div>
                 ) : (
                   <div className="notice">
-                    <strong>DLSA office:</strong>{" "}
-                    {result.dlsa?.message ??
-                      "Add a district to look up a sourced office. The national helpline is 15100."}
+                    <strong>{t("aid.dlsaOffice")}</strong>{" "}
+                    {t("aid.dlsaFallback")}
                   </div>
                 )}
 
-                <h3>How to apply</h3>
+                <h3>{t("aid.howTitle")}</h3>
                 <ol className="route-list">
-                  {result.route.map((r, i) => (
-                    <li key={i}>
-                      <span className="route-step">{r.step}</span>
-                      <span className="route-detail">{r.detail}</span>
-                    </li>
-                  ))}
+                  {result.route.map((r, i) => {
+                    const keys = ROUTE_KEYS[i];
+                    return (
+                      <li key={i}>
+                        <span className="route-step">
+                          {keys ? t(keys.step) : r.step}
+                        </span>
+                        <span className="route-detail">
+                          {keys
+                            ? t(keys.detail, {
+                                url: NALSA_ONLINE_APPLICATION_URL,
+                                helpline: NALSA_HELPLINE,
+                              })
+                            : r.detail}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ol>
 
-                <h3>Caveats</h3>
+                <h3>{t("aid.caveatsTitle")}</h3>
                 <ul className="small" style={{ paddingLeft: 18 }}>
                   {result.caveats.map((c, i) => (
                     <li key={i} style={{ marginBottom: 5 }}>
-                      {c}
+                      {CAVEAT_KEYS[i] ? t(CAVEAT_KEYS[i]) : c}
                     </li>
                   ))}
                 </ul>
 
                 <div className="btn-row">
                   <a className="btn" href={NALSA_ONLINE_APPLICATION_URL} target="_blank" rel="noreferrer">
-                    Open the NALSA application
+                    {t("aid.openApplication")}
                   </a>
                   <a className="btn secondary" href="tel:15100">
-                    Call 15100
+                    {t("aid.call")}
                   </a>
                   <a className="btn secondary" href="/dlsa">
-                    Find the DLSA office
+                    {t("aid.findDlsa")}
                   </a>
                 </div>
               </section>
             )}
           </div>
 
-          <aside className="aid-rail" aria-label="Section 12 reference">
+          <aside className="aid-rail" aria-label={t("aid.asideLabel")}>
             <div className="rail-block">
-              <p className="rail-title">What Section 12 covers</p>
-              <p className="rail-note">
-                The list is not a favour. Section 12(a) to (h) of the Legal
-                Services Authorities Act, 1987 names the categories. Section
-                13(1) still requires a genuine case.
-              </p>
+              <p className="rail-title">{t("aid.coversTitle")}</p>
+              <p className="rail-note">{t("aid.coversNote")}</p>
               <ul className="basis-list">
                 {LEGAL_AID_CATEGORIES.map((c) => (
                   <li key={c.id}>
                     <div className="basis-head">
                       <span className="clause">{c.clause}</span>
-                      <span className="basis-label">{c.label}</span>
+                      <span className="basis-label">{t(CAT_LABEL[c.id])}</span>
                     </div>
                   </li>
                 ))}
               </ul>
               <p className="source-line">
-                <span className="source-tag">Sourced</span>{" "}
-                <a href={NALSA_LEGAL_AID_URL} target="_blank" rel="noreferrer">
-                  NALSA legal-aid page
-                </a>{" "}
-                · accessed {INCOME_TABLE_ACCESSED_ON}
+                <RichText
+                  template={t("aid.sourceLine")}
+                  values={{
+                    link: (
+                      <a href={NALSA_LEGAL_AID_URL} target="_blank" rel="noreferrer">
+                        {t("aid.nalsaAidPage")}
+                      </a>
+                    ),
+                    date: INCOME_TABLE_ACCESSED_ON,
+                  }}
+                />
               </p>
             </div>
 
             <div className="rail-block">
-              <p className="rail-title">State income ceiling, s.12(h)</p>
+              <p className="rail-title">{t("aid.ceilingTitle")}</p>
               <div className="income-scroll">
                 <table className="register">
                   <thead>
                     <tr>
-                      <th>State / UT</th>
-                      <th className="num">Per year</th>
+                      <th>{t("aid.colState")}</th>
+                      <th className="num">{t("aid.perYear")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -396,19 +468,19 @@ export default function LegalAidPage() {
                 </table>
               </div>
               <p className="source-line">
-                Reproduced from NALSA's published table on {INCOME_TABLE_ACCESSED_ON}.
-                State Governments may revise the limit; confirm with the DLSA.
+                {t("aid.tableNote", { date: INCOME_TABLE_ACCESSED_ON })}
               </p>
             </div>
 
             <div className="rail-block">
-              <p className="rail-title">If the form is hard to use</p>
+              <p className="rail-title">{t("aid.hardTitle")}</p>
               <p className="rail-note">
-                Call the national free legal-aid helpline{" "}
-                <a href="tel:15100">{NALSA_HELPLINE}</a>. A written application
-                on plain paper is enough. The jail Superintendent and the DLSA
-                secretary can also start the application for a person in
-                custody.
+                <RichText
+                  template={t("aid.hardNote")}
+                  values={{
+                    helpline: <a href="tel:15100">{NALSA_HELPLINE}</a>,
+                  }}
+                />
               </p>
             </div>
           </aside>

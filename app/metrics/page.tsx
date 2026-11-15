@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/components/I18nProvider";
+import RichText from "@/components/RichText";
 
 interface Metrics {
   screened: number;
@@ -18,6 +20,7 @@ interface Metrics {
 }
 
 export default function MetricsPage() {
+  const { t } = useI18n();
   const [m, setM] = useState<Metrics | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -43,21 +46,17 @@ export default function MetricsPage() {
     <div className="screen-only">
       <div className="shell">
         <header className="page-head">
-          <p className="page-kicker">Deployment record</p>
-          <h1>Metrics, with the demo rows removed.</h1>
-          <p className="lede">
-            Four numbers, counted from real DLSA imports only. A demo row is a
-            preview, not a prisoner. The register keeps the two apart so the
-            submission numbers cannot be inflated.
-          </p>
+          <p className="page-kicker">{t("metrics.kicker")}</p>
+          <h1>{t("metrics.title")}</h1>
+          <p className="lede">{t("metrics.lede")}</p>
         </header>
 
         <div className="case-layout" style={{ paddingTop: 28 }}>
           <div className="document">
             <section className="folio" style={{ paddingTop: 0 }}>
               <div className="folio-head">
-                <span className="folio-mark">Register</span>
-                <h2>Submission numbers</h2>
+                <span className="folio-mark">{t("metrics.registerMark")}</span>
+                <h2>{t("metrics.submissionTitle")}</h2>
               </div>
 
               {m ? (
@@ -66,50 +65,35 @@ export default function MetricsPage() {
                     <table className="register">
                       <thead>
                         <tr>
-                          <th>Number</th>
-                          <th>What it counts</th>
-                          <th className="num">Value</th>
+                          <th>{t("metrics.colNumber")}</th>
+                          <th>{t("metrics.colCounts")}</th>
+                          <th className="num">{t("metrics.colValue")}</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr>
-                          <td className="row-strong">Screened (N)</td>
-                          <td>
-                            Every real DLSA or jail CSV row imported. One row is
-                            one screened undertrial.
-                          </td>
+                          <td className="row-strong">{t("metrics.rowScreened")}</td>
+                          <td>{t("metrics.rowScreenedDetail")}</td>
                           <td className="num">{m.template?.screened_N ?? 0}</td>
                         </tr>
                         <tr>
-                          <td className="row-strong">Over-detained found</td>
-                          <td>
-                            Real rows whose computation is ELIGIBLE_NOW or
-                            CEILING_BREACHED at today&apos;s date.
-                          </td>
+                          <td className="row-strong">{t("metrics.rowOver")}</td>
+                          <td>{t("metrics.rowOverDetail")}</td>
                           <td className="num">{m.template?.overDetainedFound ?? 0}</td>
                         </tr>
                         <tr>
-                          <td className="row-strong">Applications filed</td>
-                          <td>
-                            Rows moved to APPLICATION_FILED after the draft was
-                            actually filed with the court or the Superintendent.
-                          </td>
+                          <td className="row-strong">{t("metrics.rowFiled")}</td>
+                          <td>{t("metrics.rowFiledDetail")}</td>
                           <td className="num">{m.template?.applicationsFiled ?? 0}</td>
                         </tr>
                         <tr>
-                          <td className="row-strong">Releases secured</td>
-                          <td>
-                            Rows moved to RELEASED only after a court order or
-                            jail release memo was verified.
-                          </td>
+                          <td className="row-strong">{t("metrics.rowReleased")}</td>
+                          <td>{t("metrics.rowReleasedDetail")}</td>
                           <td className="num">{m.template?.releasesSecured ?? 0}</td>
                         </tr>
                         <tr>
-                          <td>Demo sample rows</td>
-                          <td>
-                            Badged preview rows. Excluded from every number
-                            above.
-                          </td>
+                          <td>{t("metrics.rowDemo")}</td>
+                          <td>{t("metrics.rowDemoDetail")}</td>
                           <td className="num">{m.demoRows}</td>
                         </tr>
                       </tbody>
@@ -117,89 +101,81 @@ export default function MetricsPage() {
                   </div>
 
                   <div className="notice">
-                    <strong>As of {m.template?.date}.</strong> The register is
-                    empty until a real jail or DLSA list is imported. A zero is
-                    an honest zero, not a missing number.
+                    <RichText
+                      template={t("metrics.notice")}
+                      values={{
+                        asOf: m.template ? (
+                          <strong>
+                            {t("metrics.asOf", { date: m.template.date })}
+                          </strong>
+                        ) : null,
+                      }}
+                    />
                   </div>
 
-                  <h3>Copy-ready block</h3>
-                  <pre className="verbatim">{JSON.stringify(m.template, null, 2)}</pre>
+                  <h3>{t("metrics.copyTitle")}</h3>
+                  <pre className="verbatim" dir="ltr">
+                    {JSON.stringify(m.template, null, 2)}
+                  </pre>
                   <div className="btn-row">
                     <button className="btn secondary" onClick={copy}>
-                      {copied ? "Copied" : "Copy the block"}
+                      {copied ? t("common.copied") : t("metrics.copy")}
                     </button>
                     <a className="btn secondary" href="/dashboard">
-                      Open the register
+                      {t("metrics.openRegister")}
                     </a>
                   </div>
                 </>
               ) : (
-                <p className="small">Reading the register…</p>
+                <p className="small">{t("common.readingRegister")}</p>
               )}
             </section>
 
             <section className="folio">
               <div className="folio-head">
-                <span className="folio-mark">Method</span>
-                <h2>How a row moves</h2>
+                <span className="folio-mark">{t("metrics.methodMark")}</span>
+                <h2>{t("metrics.methodTitle")}</h2>
               </div>
               <ol className="route-list">
                 <li>
-                  <span className="route-step">Import</span>
-                  <span className="route-detail">
-                    A real CSV row enters the register with is_sample=0. It is
-                    counted as screened.
-                  </span>
+                  <span className="route-step">{t("metrics.stepImport")}</span>
+                  <span className="route-detail">{t("metrics.stepImportDetail")}</span>
                 </li>
                 <li>
-                  <span className="route-step">Screen</span>
-                  <span className="route-detail">
-                    The engine computes the 1/3 or 1/2 date. If the date has
-                    passed, the row enters over-detained found.
-                  </span>
+                  <span className="route-step">{t("metrics.stepScreen")}</span>
+                  <span className="route-detail">{t("metrics.stepScreenDetail")}</span>
                 </li>
                 <li>
-                  <span className="route-step">File</span>
-                  <span className="route-detail">
-                    After the DLSA advocate reviews and the application is filed,
-                    the status moves to APPLICATION_FILED.
-                  </span>
+                  <span className="route-step">{t("metrics.stepFile")}</span>
+                  <span className="route-detail">{t("metrics.stepFileDetail")}</span>
                 </li>
                 <li>
-                  <span className="route-step">Release</span>
-                  <span className="route-detail">
-                    Only a verified order or release memo moves the row to
-                    RELEASED.
-                  </span>
+                  <span className="route-step">{t("metrics.stepRelease")}</span>
+                  <span className="route-detail">{t("metrics.stepReleaseDetail")}</span>
                 </li>
               </ol>
             </section>
           </div>
 
-          <aside className="rail" aria-label="Counting rules">
+          <aside className="rail" aria-label={t("metrics.railLabel")}>
             <div className="rail-block">
-              <p className="rail-title">The rule</p>
-              <p className="rail-note">
-                Demo rows never count. The API filters them out before computing
-                every number on this page. If a figure here is zero, no real row
-                has been imported yet.
-              </p>
+              <p className="rail-title">{t("metrics.ruleTitle")}</p>
+              <p className="rail-note">{t("metrics.ruleNote")}</p>
             </div>
             <div className="rail-block">
-              <p className="rail-title">What this does not claim</p>
-              <p className="rail-note">
-                It does not claim releases that were not verified, cases that
-                were not filed, or prisoners who were not in a real import. It
-                does not estimate a district's total from a sample.
-              </p>
+              <p className="rail-title">{t("metrics.notClaimTitle")}</p>
+              <p className="rail-note">{t("metrics.notClaimNote")}</p>
             </div>
             <div className="rail-block">
-              <p className="rail-title">Source</p>
+              <p className="rail-title">{t("metrics.sourceTitle")}</p>
               <p className="rail-note">
-                Counts come from the SQLite register at{" "}
-                <code>/api/metrics</code>. The same four numbers are on the
-                submission template. See <a href="/sources">Sources</a> for the
-                statute and scale citations.
+                <RichText
+                  template={t("metrics.sourceNote")}
+                  values={{
+                    endpoint: <code>/api/metrics</code>,
+                    link: <a href="/sources">{t("nav.sources")}</a>,
+                  }}
+                />
               </p>
             </div>
           </aside>
