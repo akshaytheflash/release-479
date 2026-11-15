@@ -21,15 +21,15 @@ NCRB, *Prison Statistics India 2024*: **5,11,542 prisoners at end-2024, of which
    - s.479(2) multiple-case pendency → blocked;
    - death/life-specified offences → excluded;
    - 4th-proviso ceiling breach flagged.
-4. **Draft application (EN + HI)** — BharatCode `qwen-3.8-27b` via OpenAI-compatible `/chat/completions`, with **exponential backoff (3 attempts) + deterministic template fallback** (`lib/draftTemplate.ts`) so the demo never dies when the API 500s/503s. Web app key stays server-side in `.env` (never committed).
+4. **Draft application (EN + HI)** — `qwen-3.8-27b` via OpenAI-compatible `/chat/completions`, with **exponential backoff (3 attempts) + deterministic template fallback** (`lib/draftTemplate.ts`) so the demo never dies when the API 500s/503s. Web app key stays server-side in `.env` (never committed).
 5. **DLSA dashboard** — SQLite; **starts empty**; rows only via **DLSA CSV import** (`dlsa-template.csv`) or the explicitly badged **demo sample rows** (excluded from metrics). Lists over-detained prisoners + days over limit.
 
 ## Live-data status (verified 2026-11-06, tested for real)
 
 | Source | Result | In-app handling |
 |---|---|---|
-| BharatCode `GET /models` | OK — `qwen-3.8-27b` live, 262k ctx | `/api/health` probes; draft tries live LLM first |
-| BharatCode `POST /chat/completions` | HTTP 500 `internal_error` (both models, repeated) | Backoff ×3 → template fallback (draft always renders) |
+| Model `GET /models` | OK — `qwen-3.8-27b` live, 262k ctx | `/api/health` probes; draft tries live LLM first |
+| Model `POST /chat/completions` | HTTP 500 `internal_error` (both models, repeated) | Backoff ×3 → template fallback (draft always renders) |
 | NJDG `njdg.ecourts.gov.in` | HTML dashboards, **not JSON** | Links to dashboard; **no fabricated medians** |
 | data.gov.in Civil Pendency API | Needs user key (`Authorization field missing`) | Dataset-search link + onboarding note; no fabricated aggregates |
 
